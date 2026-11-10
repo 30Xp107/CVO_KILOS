@@ -61,6 +61,8 @@ export function publicAdmin(admin) {
     name: admin.name,
     email: admin.email,
     role: admin.role,
+    position: admin.position,
+    idNumber: admin.idNumber,
     lastLoginAt: admin.lastLoginAt,
   };
 }

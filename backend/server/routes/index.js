@@ -192,15 +192,29 @@ router.post(
       });
     }
 
-    const { name, email, password } = parsed.data;
+    const { idNumber, firstName, middleInitial, lastName, email, position, password } = parsed.data;
+
+    const fullName = [firstName, middleInitial, lastName].filter(Boolean).join(" ");
 
     const existing = await Admin.findOne({ email });
     if (existing) {
       return res.status(409).json({ message: "An account with this email already exists." });
     }
 
+    const existingId = await Admin.findOne({ idNumber });
+    if (existingId) {
+      return res.status(409).json({ message: "An account with this ID Number already exists." });
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
-    const staff = await Admin.create({ name, email, passwordHash, role: "staff" });
+    const staff = await Admin.create({
+      name: fullName,
+      email,
+      passwordHash,
+      role: "staff",
+      position,
+      idNumber,
+    });
 
     return res.status(201).json({
       message: "Staff account created successfully.",

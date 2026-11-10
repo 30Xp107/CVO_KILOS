@@ -50,12 +50,24 @@ export function AuthProvider({ children }) {
     return data.admin;
   }, []);
 
-  const register = useCallback(async (name, email, password, confirmPassword) => {
-    const data = await api.post("/auth/register", { name, email, password, confirmPassword });
-    setToken(data.token);
-    setAdmin(data.admin);
-    return data.admin;
-  }, []);
+  const register = useCallback(
+    async (idNumber, firstName, middleInitial, lastName, email, position, password, confirmPassword) => {
+      const data = await api.post("/auth/register", {
+        idNumber,
+        firstName,
+        middleInitial,
+        lastName,
+        email,
+        position,
+        password,
+        confirmPassword,
+      });
+      setToken(data.token);
+      setAdmin(data.admin);
+      return data.admin;
+    },
+    []
+  );
 
   const value = useMemo(
     () => ({ admin, loading, login, logout, refresh, register, setAdmin }),

@@ -10,14 +10,23 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { BrandMark, Button, FormField, Spinner, TextInput } from "../../components/ui.jsx";
+import { BrandMark, Button, FormField, Spinner, TextInput, Select } from "../../components/ui.jsx";
+
+const POSITIONS = [
+  { value: "CEC", label: "CEC - Community Employment Coordinator" },
+  { value: "FS", label: "FS - Field Supervisor" },
+];
 
 export default function StaffRegister() {
   const { admin, loading, register } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [name, setName] = useState("");
+  const [idNumber, setIdNumber] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [middleInitial, setMiddleInitial] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [position, setPosition] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -38,12 +47,23 @@ export default function StaffRegister() {
     return <Navigate to={admin.role === "staff" ? "/staff" : "/admin"} replace />;
   }
 
+  const fullName = [firstName, middleInitial, lastName].filter(Boolean).join(" ");
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
     setSubmitting(true);
     try {
-      const created = await register(name, email, password, confirmPassword);
+      const created = await register(
+        idNumber,
+        firstName,
+        middleInitial,
+        lastName,
+        email,
+        position,
+        password,
+        confirmPassword
+      );
       navigate(created.role === "staff" ? "/staff" : "/admin", { replace: true });
     } catch (err) {
       setError(err.message || "Unable to create your account. Please try again.");
@@ -66,7 +86,7 @@ export default function StaffRegister() {
           <ul>
             <li>
               <UserPlus size={18} />
-              <span>Register with your name and work email</span>
+              <span>Register with your ID number and official email</span>
             </li>
             <li>
               <FileText size={18} />
@@ -93,23 +113,57 @@ export default function StaffRegister() {
           </span>
           <h2>Create your staff account</h2>
           <p className="login-subtitle">
-            Use your official DSWD email address. Your full name will be used to match the
-            beneficiary profiles you handle.
+            Use your official DSWD email address. Your name will be used to match the beneficiary
+            profiles you handle.
           </p>
 
           {error ? <div className="form-alert">{error}</div> : null}
 
           <form onSubmit={handleSubmit} className="login-form">
-            <FormField label="Full name" htmlFor="name" required>
+            <FormField label="ID Number" htmlFor="idNumber" required>
               <TextInput
-                id="name"
-                autoComplete="name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Juan dela Cruz"
+                id="idNumber"
+                autoComplete="username"
+                value={idNumber}
+                onChange={(event) => setIdNumber(event.target.value)}
+                placeholder="e.g. 2026-001"
                 required
               />
             </FormField>
+
+            <div className="field-grid">
+              <FormField label="First Name" htmlFor="firstName" required>
+                <TextInput
+                  id="firstName"
+                  autoComplete="given-name"
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                  placeholder="Juan"
+                  required
+                />
+              </FormField>
+              <FormField label="Middle Initial" htmlFor="middleInitial">
+                <TextInput
+                  id="middleInitial"
+                  autoComplete="additional-name"
+                  value={middleInitial}
+                  onChange={(event) => setMiddleInitial(event.target.value)}
+                  placeholder="P."
+                  maxLength="5"
+                />
+              </FormField>
+              <FormField label="Last Name" htmlFor="lastName" required>
+                <TextInput
+                  id="lastName"
+                  autoComplete="family-name"
+                  value={lastName}
+                  onChange={(event) => setLastName(event.target.value)}
+                  placeholder="Dela Cruz"
+                  required
+                />
+              </FormField>
+            </div>
+
             <FormField label="Email address" htmlFor="email" required>
               <TextInput
                 id="email"
@@ -121,6 +175,23 @@ export default function StaffRegister() {
                 required
               />
             </FormField>
+
+            <FormField label="Position" htmlFor="position" required>
+              <Select
+                id="position"
+                value={position}
+                onChange={(event) => setPosition(event.target.value)}
+                required
+              >
+                <option value="">Select position</option>
+                {POSITIONS.map((option) => (
+                  <option value={option.value} key={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+
             <FormField label="Password" htmlFor="password" required>
               <div className="password-field">
                 <TextInput
@@ -142,6 +213,7 @@ export default function StaffRegister() {
                 </button>
               </div>
             </FormField>
+
             <FormField label="Confirm password" htmlFor="confirmPassword" required>
               <div className="password-field">
                 <TextInput
@@ -163,7 +235,8 @@ export default function StaffRegister() {
                 </button>
               </div>
             </FormField>
-            <Button type="submit" loading={submitting} iconRight={ArrowRight} className="login-submit">
+
+            <Button type="submit" loading={submitting} iconRight={ArrowLeft} className="login-submit">
               Create account
             </Button>
           </form>

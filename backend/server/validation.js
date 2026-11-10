@@ -249,8 +249,14 @@ export const submissionSchema = z.object({
 });
 
 export const registerSchema = z.object({
-  name: z.string().trim().min(2, "Full name is required").max(200),
+  idNumber: z.string().trim().min(1, "ID Number is required").max(50),
+  firstName: z.string().trim().min(1, "First Name is required").max(100),
+  middleInitial: z.string().trim().max(5).optional().default(""),
+  lastName: z.string().trim().min(1, "Last Name is required").max(100),
   email: z.string().trim().email("Enter a valid email address").max(200).toLowerCase(),
+  position: z.enum(["CEC", "FS"], {
+    errorMap: () => ({ message: "Select a position (CEC or FS)." }),
+  }),
   password: z.string().min(8, "Password must be at least 8 characters").max(200),
   confirmPassword: z.string().min(1, "Please confirm your password"),
 }).refine((data) => data.password === data.confirmPassword, {

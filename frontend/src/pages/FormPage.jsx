@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,15 +11,18 @@ import {
   FileText,
   Info,
   ListChecks,
+  LogOut,
   LockKeyhole,
   RotateCcw,
   ShieldCheck,
   Smartphone,
+  UserRound,
 } from "lucide-react";
 import { api } from "../lib/api.js";
 import { createInitialForm, PRIORITY_KEYS, STEPS } from "../lib/formConfig.js";
 import { setNestedValue } from "../lib/helpers.js";
 import { useToast } from "../components/Toast.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 import { BrandMark, Button, ConfirmDialog, Spinner } from "../components/ui.jsx";
 import PersonalStep from "../components/form/PersonalStep.jsx";
 import SkillsStep from "../components/form/SkillsStep.jsx";
@@ -198,6 +201,7 @@ function buildPayload(form) {
 }
 
 export default function FormPage() {
+  const { admin, logout } = useAuth();
   const [form, setForm] = useState(() => loadDraft() || createInitialForm());
   const [stepIndex, setStepIndex] = useState(0);
   const [maxStep, setMaxStep] = useState(0);
@@ -303,7 +307,11 @@ export default function FormPage() {
 
     setSubmitting(true);
     try {
-      const data = await api.post("/submissions", buildPayload(form));
+      const payload = buildPayload(form);
+      payload.staff = {
+        interviewedBy: admin?.name || "",
+      };
+      const data = await api.post("/submissions", payload);
       setSuccess(data);
       try {
         localStorage.removeItem(DRAFT_KEY);
@@ -361,7 +369,7 @@ export default function FormPage() {
   if (success) {
     return (
       <div className="public-shell">
-        <PublicHeader />
+        <PublicHeader admin={admin} logout={logout} />
         <main className="success-wrap">
           <div className="success-card">
             <span className="success-icon">
@@ -399,6 +407,11 @@ export default function FormPage() {
                     timeStyle: "short",
                   })}
                 </strong>
+              </div>
+              <div>
+                <UserRound size={18} />
+                <span>Processed by</span>
+                <strong>{admin?.name || "Staff"}</strong>
               </div>
               <div>
                 <ShieldCheck size={18} />
@@ -442,7 +455,7 @@ export default function FormPage() {
 
   return (
     <div className="public-shell" ref={topRef}>
-      <PublicHeader />
+      <PublicHeader admin={admin} logout={logout} />
 
       <main className="form-page">
         <section className="form-hero">
@@ -633,7 +646,14 @@ export default function FormPage() {
   );
 }
 
-function PublicHeader() {
+function PublicHeader({ admin, logout }) {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/admin/login", { replace: true });
+  };
+
   return (
     <header className="public-header">
       <Link to="/" className="public-brand" aria-label="KILOS Profiling home">
@@ -643,9 +663,13 @@ function PublicHeader() {
         <span className="header-tag">
           <FileText size={14} /> KILOS Form
         </span>
-        <Link to="/admin/login" className="staff-link">
-          <LockKeyhole size={15} /> Staff access
-        </Link>
+        <span className="header-staff">
+          <UserRound size={14} />
+          <span>{admin?.name}</span>
+        </span>
+        <button type="button" className="staff-link" onClick={handleLogout}>
+          <LogOut size={15} /> Sign out
+        </button>
       </div>
     </header>
   );

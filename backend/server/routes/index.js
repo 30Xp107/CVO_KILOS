@@ -4,7 +4,7 @@ import rateLimit from "express-rate-limit";
 import bcrypt from "bcryptjs";
 import { Submission, Admin } from "../models.js";
 import { submissionSchema, loginSchema, passwordSchema, staffUpdateSchema, registerSchema } from "../validation.js";
-import { requireAuth, requireRole, signToken, publicAdmin, newReferenceNo } from "../middleware/auth.js";
+import { requireAuth, requireRole, signAccessToken, createRefreshToken, verifyRefreshToken, revokeRefreshToken, revokeAllRefreshTokens, publicAdmin, newReferenceNo } from "../middleware/auth.js";
 import { ensureAdminAccount } from "../bootstrap.js";
 import { asyncHandler, escapeRegex } from "../utils.js";
 import { buildWorkbook } from "../exports/excel.js";
@@ -56,6 +56,7 @@ router.get("/health", (req, res) => {
 router.post(
   "/submissions",
   submitLimiter,
+  requireAuth,
   asyncHandler(async (req, res) => {
     const parsed = submissionSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -85,6 +86,9 @@ router.post(
           referenceNo: newReferenceNo(),
           status: "new",
           submittedAt: new Date(),
+          staff: {
+            interviewedBy: req.admin.name,
+          },
         });
         break;
       } catch (error) {
@@ -102,6 +106,7 @@ router.post(
       id: submission._id,
       referenceNo: submission.referenceNo,
       submittedAt: submission.submittedAt,
+      interviewedBy: req.admin.name,
     });
   })
 );
@@ -135,9 +140,13 @@ router.post(
     admin.lastLoginAt = new Date();
     await admin.save();
 
+    const accessToken = signAccessToken(admin);
+    const refreshToken = await createRefreshToken(admin._id);
+
     return res.json({
       message: "Signed in successfully.",
-      token: signToken(admin),
+      accessToken,
+      refreshToken,
       admin: publicAdmin(admin),
     });
   })
@@ -170,6 +179,69 @@ router.patch(
     await admin.save();
 
     res.json({ message: "Password updated successfully." });
+  })
+);
+
+/* -------------------------------------------------------------------------- */
+/* Token refresh                                                              */
+/* -------------------------------------------------------------------------- */
+
+const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { message: "Too many token refresh attempts. Please wait a few minutes and try again." },
+});
+
+router.post(
+  "/auth/refresh",
+  refreshLimiter,
+  asyncHandler(async (req, res) => {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken || typeof refreshToken !== "string") {
+      return res.status(400).json({ message: "Refresh token is required." });
+    }
+
+    const admin = await verifyRefreshToken(refreshToken);
+    if (!admin) {
+      return res.status(401).json({ message: "Invalid or expired refresh token." });
+    }
+
+    const accessToken = signAccessToken(admin);
+    const newRefreshToken = await createRefreshToken(admin._id);
+
+    // Revoke the old refresh token (rotation)
+    await revokeRefreshToken(refreshToken);
+
+    return res.json({
+      message: "Token refreshed successfully.",
+      accessToken,
+      refreshToken: newRefreshToken,
+      admin: publicAdmin(admin),
+    });
+  })
+);
+
+/* -------------------------------------------------------------------------- */
+/* Logout                                                                     */
+/* -------------------------------------------------------------------------- */
+
+router.post(
+  "/auth/logout",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { refreshToken } = req.body;
+
+    if (refreshToken) {
+      await revokeRefreshToken(refreshToken);
+    }
+
+    // Revoke all refresh tokens for this user (logout all devices)
+    await revokeAllRefreshTokens(req.admin._id);
+
+    res.json({ message: "Signed out successfully." });
   })
 );
 
@@ -216,9 +288,13 @@ router.post(
       idNumber,
     });
 
+    const accessToken = signAccessToken(staff);
+    const refreshToken = await createRefreshToken(staff._id);
+
     return res.status(201).json({
       message: "Staff account created successfully.",
-      token: signToken(staff),
+      accessToken,
+      refreshToken,
       admin: publicAdmin(staff),
     });
   })

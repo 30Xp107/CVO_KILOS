@@ -1,31 +1,61 @@
-const TOKEN_KEY = "kilos_admin_token";
+const ACCESS_TOKEN_KEY = "kilos_access_token";
+const REFRESH_TOKEN_KEY = "kilos_refresh_token";
 
 // In development, requests go through the Vite proxy (/api).
 // In production, set VITE_API_URL to the deployed backend URL ending in /api.
 export const API_BASE = (import.meta.env.VITE_API_URL || "/api").trim().replace(/\/$/, "");
 
-export function getToken() {
+export function getAccessToken() {
   try {
-    return localStorage.getItem(TOKEN_KEY) || "";
+    return localStorage.getItem(ACCESS_TOKEN_KEY) || "";
   } catch {
     return "";
   }
 }
 
-export function setToken(token) {
+export function setAccessToken(token) {
   try {
-    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(ACCESS_TOKEN_KEY, token);
   } catch {
     /* ignore storage errors */
   }
 }
 
-export function clearToken() {
+export function clearAccessToken() {
   try {
-    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
   } catch {
     /* ignore storage errors */
   }
+}
+
+export function getRefreshToken() {
+  try {
+    return localStorage.getItem(REFRESH_TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function setRefreshToken(token) {
+  try {
+    localStorage.setItem(REFRESH_TOKEN_KEY, token);
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
+export function clearRefreshToken() {
+  try {
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
+export function clearTokens() {
+  clearAccessToken();
+  clearRefreshToken();
 }
 
 function buildQuery(params = {}) {
@@ -48,23 +78,105 @@ async function parseError(response) {
   }
 }
 
+let isRefreshing = false;
+let refreshPromise = null;
+
+async function refreshAccessToken() {
+  if (isRefreshing) return refreshPromise;
+
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    throw new Error("No refresh token available.");
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE}/auth/refresh`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        clearTokens();
+        throw new Error("Refresh failed.");
+      }
+
+      const data = await response.json();
+      setAccessToken(data.accessToken);
+      setRefreshToken(data.refreshToken);
+      return data;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
 export async function apiRequest(path, options = {}) {
   const { method = "GET", body, params, signal, headers = {} } = options;
-  const token = getToken();
+  const accessToken = getAccessToken();
   const response = await fetch(`${API_BASE}${path}${buildQuery(params)}`, {
     method,
     signal,
     headers: {
       Accept: "application/json",
       ...(body ? { "Content-Type": "application/json" } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...headers,
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
 
-  if (response.status === 401 && token) {
-    clearToken();
+  // If 401 and we have a refresh token, try to refresh and retry once
+  if (response.status === 401 && accessToken) {
+    try {
+      await refreshAccessToken();
+      const newAccessToken = getAccessToken();
+      const retryResponse = await fetch(`${API_BASE}${path}${buildQuery(params)}`, {
+        method,
+        signal,
+        headers: {
+          Accept: "application/json",
+          ...(body ? { "Content-Type": "application/json" } : {}),
+          ...(newAccessToken ? { Authorization: `Bearer ${newAccessToken}` } : {}),
+          ...headers,
+        },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+      if (retryResponse.status === 401) {
+        clearTokens();
+        window.dispatchEvent(new Event("kilos:unauthorized"));
+        const message = await parseError(retryResponse);
+        const error = new Error(message);
+        error.status = retryResponse.status;
+        throw error;
+      }
+      if (!retryResponse.ok) {
+        const message = await parseError(retryResponse);
+        const error = new Error(message);
+        error.status = retryResponse.status;
+        throw error;
+      }
+      if (retryResponse.status === 204) return null;
+      return retryResponse.json();
+    } catch (err) {
+      if (err.message === "Refresh failed." || err.message === "No refresh token available.") {
+        clearTokens();
+        window.dispatchEvent(new Event("kilos:unauthorized"));
+      }
+      throw err;
+    }
+  }
+
+  if (response.status === 401) {
+    clearTokens();
     window.dispatchEvent(new Event("kilos:unauthorized"));
   }
 
@@ -80,15 +192,15 @@ export async function apiRequest(path, options = {}) {
 }
 
 export async function downloadRequest(path, filename, params = {}) {
-  const token = getToken();
+  const accessToken = getAccessToken();
   const response = await fetch(`${API_BASE}${path}${buildQuery(params)}`, {
     headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
   });
 
-  if (response.status === 401 && token) {
-    clearToken();
+  if (response.status === 401 && accessToken) {
+    clearTokens();
     window.dispatchEvent(new Event("kilos:unauthorized"));
   }
 

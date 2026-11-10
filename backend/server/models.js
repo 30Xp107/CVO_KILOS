@@ -180,3 +180,21 @@ const adminSchema = new mongoose.Schema(
 );
 
 export const Admin = mongoose.models.Admin || mongoose.model("Admin", adminSchema);
+
+const refreshTokenSchema = new mongoose.Schema(
+  {
+    admin: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      required: true,
+      index: true,
+    },
+    token: { type: String, required: true, index: true },
+    expiresAt: { type: Date, required: true, index: { expireAfterSeconds: 0 } },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { timestamps: true }
+);
+
+export const RefreshToken =
+  mongoose.models.RefreshToken || mongoose.model("RefreshToken", refreshTokenSchema);

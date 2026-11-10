@@ -1,19 +1,33 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { api, clearToken, getToken, setToken } from "../lib/api.js";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import {
+  api,
+  clearTokens,
+  getAccessToken,
+  getRefreshToken,
+  setAccessToken,
+  setRefreshToken,
+} from "../lib/api.js";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [admin, setAdmin] = useState(null);
-  const [loading, setLoading] = useState(Boolean(getToken()));
+  const [loading, setLoading] = useState(Boolean(getAccessToken()));
 
   const logout = useCallback(() => {
-    clearToken();
+    clearTokens();
     setAdmin(null);
   }, []);
 
   const refresh = useCallback(async () => {
-    if (!getToken()) {
+    if (!getAccessToken()) {
       setAdmin(null);
       setLoading(false);
       return null;
@@ -23,7 +37,7 @@ export function AuthProvider({ children }) {
       setAdmin(data.admin);
       return data.admin;
     } catch {
-      clearToken();
+      clearTokens();
       setAdmin(null);
       return null;
     } finally {
@@ -45,7 +59,8 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const data = await api.post("/auth/login", { email, password });
-    setToken(data.token);
+    setAccessToken(data.accessToken);
+    setRefreshToken(data.refreshToken);
     setAdmin(data.admin);
     return data.admin;
   }, []);
@@ -62,7 +77,8 @@ export function AuthProvider({ children }) {
         password,
         confirmPassword,
       });
-      setToken(data.token);
+      setAccessToken(data.accessToken);
+      setRefreshToken(data.refreshToken);
       setAdmin(data.admin);
       return data.admin;
     },

@@ -205,7 +205,7 @@ export default function StaffManagement() {
               </Link>
             </div>
           </section>
-        </div>
+        </aside>
       </div>
     </div>
   );

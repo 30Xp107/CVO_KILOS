@@ -254,8 +254,8 @@ export const registerSchema = z.object({
   middleInitial: z.string().trim().max(5).optional().default(""),
   lastName: z.string().trim().min(1, "Last Name is required").max(100),
   email: z.string().trim().email("Enter a valid email address").max(200).toLowerCase(),
-  position: z.enum(["CEC", "FS"], {
-    errorMap: () => ({ message: "Select a position (CEC or FS)." }),
+  position: z.enum(["Community Engagement Coordinator", "Field Staff"], {
+    errorMap: () => ({ message: "Select a position." }),
   }),
   password: z.string().min(8, "Password must be at least 8 characters").max(200),
   confirmPassword: z.string().min(1, "Please confirm your password"),

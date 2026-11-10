@@ -134,6 +134,18 @@ export default function AdminLogin() {
             </Button>
           </form>
 
+          <div className="register-divider">or</div>
+
+          <div className="register-link-wrapper">
+            Don't have an account?{" "}
+            <Link
+              to="/auth/register"
+              className="register-link-highlight"
+            >
+              Register as staff
+            </Link>
+          </div>
+
           <p className="login-hint">
             Access is limited to authorized personnel. All activity may be logged for security and
             audit purposes.

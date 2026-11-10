@@ -13,8 +13,8 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { BrandMark, Button, FormField, Spinner, TextInput, Select } from "../../components/ui.jsx";
 
 const POSITIONS = [
-  { value: "CEC", label: "CEC - Community Employment Coordinator" },
-  { value: "FS", label: "FS - Field Supervisor" },
+  { value: "Community Engagement Coordinator", label: "Community Engagement Coordinator" },
+  { value: "Field Staff", label: "Field Staff" },
 ];
 
 export default function StaffRegister() {
@@ -241,12 +241,15 @@ export default function StaffRegister() {
             </Button>
           </form>
 
-          <p className="login-hint">
+          <div className="signin-link-wrapper">
             Already have an account?{" "}
-            <Link to="/admin/login" className="login-link">
+            <Link
+              to="/admin/login"
+              className="register-link-highlight"
+            >
               Sign in
             </Link>
-          </p>
+          </div>
         </div>
       </main>
     </div>

@@ -3,8 +3,8 @@ import mongoose from "mongoose";
 import rateLimit from "express-rate-limit";
 import bcrypt from "bcryptjs";
 import { Submission, Admin } from "../models.js";
-import { submissionSchema, loginSchema, passwordSchema, staffUpdateSchema } from "../validation.js";
-import { requireAuth, signToken, publicAdmin, newReferenceNo } from "../middleware/auth.js";
+import { submissionSchema, loginSchema, passwordSchema, staffUpdateSchema, registerSchema } from "../validation.js";
+import { requireAuth, requireRole, signToken, publicAdmin, newReferenceNo } from "../middleware/auth.js";
 import { ensureAdminAccount } from "../bootstrap.js";
 import { asyncHandler, escapeRegex } from "../utils.js";
 import { buildWorkbook } from "../exports/excel.js";
@@ -35,6 +35,14 @@ const loginLimiter = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: { message: "Too many sign-in attempts. Please wait a few minutes and try again." },
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { message: "Too many registration attempts. Please try again later." },
 });
 
 /* -------------------------------------------------------------------------- */
@@ -166,6 +174,43 @@ router.patch(
 );
 
 /* -------------------------------------------------------------------------- */
+/* Staff registration                                                         */
+/* -------------------------------------------------------------------------- */
+
+router.post(
+  "/auth/register",
+  registerLimiter,
+  asyncHandler(async (req, res) => {
+    const parsed = registerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(422).json({
+        message: parsed.error.issues[0]?.message || "Please review your information.",
+        errors: parsed.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
+      });
+    }
+
+    const { name, email, password } = parsed.data;
+
+    const existing = await Admin.findOne({ email });
+    if (existing) {
+      return res.status(409).json({ message: "An account with this email already exists." });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const staff = await Admin.create({ name, email, passwordHash, role: "staff" });
+
+    return res.status(201).json({
+      message: "Staff account created successfully.",
+      token: signToken(staff),
+      admin: publicAdmin(staff),
+    });
+  })
+);
+
+/* -------------------------------------------------------------------------- */
 /* Admin dashboard                                                            */
 /* -------------------------------------------------------------------------- */
 
@@ -211,6 +256,7 @@ router.use("/admin", requireAuth);
 
 router.get(
   "/admin/stats",
+  requireRole("admin"),
   asyncHandler(async (req, res) => {
     const now = new Date();
     const startOfToday = startOfManilaDay(now);
@@ -294,6 +340,7 @@ router.get(
 
 router.get(
   "/admin/submissions",
+  requireRole("admin"),
   asyncHandler(async (req, res) => {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
@@ -338,6 +385,12 @@ router.get(
     }
     const submission = await Submission.findById(req.params.id).lean();
     if (!submission) return res.status(404).json({ message: "Submission not found." });
+
+    // Staff may only view responses they personally interviewed.
+    if (req.admin.role === "staff" && submission.staff?.interviewedBy !== req.admin.name) {
+      return res.status(403).json({ message: "You can only view responses you handled." });
+    }
+
     res.json({ submission });
   })
 );
@@ -348,6 +401,16 @@ router.patch(
     if (!isValidId(req.params.id)) {
       return res.status(404).json({ message: "Submission not found." });
     }
+
+    // Staff may only update responses they personally interviewed.
+    if (req.admin.role === "staff") {
+      const existing = await Submission.findById(req.params.id).lean();
+      if (!existing) return res.status(404).json({ message: "Submission not found." });
+      if (existing.staff?.interviewedBy !== req.admin.name) {
+        return res.status(403).json({ message: "You can only update responses you handled." });
+      }
+    }
+
     const parsed = staffUpdateSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(422).json({ message: parsed.error.issues[0].message });
@@ -373,6 +436,7 @@ router.patch(
 
 router.delete(
   "/admin/submissions/:id",
+  requireRole("admin"),
   asyncHandler(async (req, res) => {
     if (!isValidId(req.params.id)) {
       return res.status(404).json({ message: "Submission not found." });
@@ -385,6 +449,7 @@ router.delete(
 
 router.get(
   "/admin/export/excel",
+  requireRole("admin"),
   asyncHandler(async (req, res) => {
     let filter;
     if (req.query.ids) {
@@ -426,6 +491,11 @@ router.get(
     const submission = await Submission.findById(req.params.id).lean();
     if (!submission) return res.status(404).json({ message: "Submission not found." });
 
+    // Staff may only download PDFs for responses they personally interviewed.
+    if (req.admin.role === "staff" && submission.staff?.interviewedBy !== req.admin.name) {
+      return res.status(403).json({ message: "You can only download responses you handled." });
+    }
+
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
@@ -435,6 +505,56 @@ router.get(
     const doc = buildSubmissionPdf(submission);
     doc.pipe(res);
     doc.end();
+  })
+);
+
+/* -------------------------------------------------------------------------- */
+/* Staff routes                                                               */
+/* -------------------------------------------------------------------------- */
+
+router.use("/staff", requireAuth, requireRole("staff"));
+
+router.get(
+  "/staff/submissions",
+  asyncHandler(async (req, res) => {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+
+    const filter = { "staff.interviewedBy": req.admin.name };
+
+    const searchText = typeof req.query.search === "string" ? req.query.search.trim() : "";
+    if (searchText) {
+      const rx = new RegExp(escapeRegex(searchText), "i");
+      filter.$or = [
+        { referenceNo: rx },
+        { "personal.cardHolderName": rx },
+        { "personal.address": rx },
+      ];
+    }
+
+    const sort = { submittedAt: -1 };
+
+    const [items, total] = await Promise.all([
+      Submission.find(filter)
+        .sort(sort)
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .select(
+          "referenceNo personal.cardHolderName personal.memberName personal.address personal.contactNo personal.sectors status submittedAt staff.interviewedBy staff.remarks staff.referralStatus"
+        )
+        .lean(),
+      Submission.countDocuments(filter),
+    ]);
+
+    res.json({
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.max(1, Math.ceil(total / limit)),
+      },
+    });
   })
 );
 

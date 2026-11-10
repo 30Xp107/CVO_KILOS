@@ -5,11 +5,13 @@ import { ToastProvider } from "./components/Toast.jsx";
 import { Spinner } from "./components/ui.jsx";
 import FormPage from "./pages/FormPage.jsx";
 import AdminLogin from "./pages/admin/AdminLogin.jsx";
+import StaffRegister from "./pages/admin/StaffRegister.jsx";
 import AdminLayout from "./pages/admin/AdminLayout.jsx";
 import Dashboard from "./pages/admin/Dashboard.jsx";
 import Submissions from "./pages/admin/Submissions.jsx";
 import SubmissionDetail from "./pages/admin/SubmissionDetail.jsx";
 import Settings from "./pages/admin/Settings.jsx";
+import StaffSubmissions from "./pages/admin/StaffSubmissions.jsx";
 import { Link } from "react-router-dom";
 
 function ScrollToTop() {
@@ -67,6 +69,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<FormPage />} />
             <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/auth/register" element={<StaffRegister />} />
             <Route
               path="/admin"
               element={
@@ -79,6 +82,17 @@ export default function App() {
               <Route path="submissions" element={<Submissions />} />
               <Route path="submissions/:id" element={<SubmissionDetail />} />
               <Route path="settings" element={<Settings />} />
+            </Route>
+            <Route
+              path="/staff"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<StaffSubmissions />} />
+              <Route path="submissions" element={<StaffSubmissions />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

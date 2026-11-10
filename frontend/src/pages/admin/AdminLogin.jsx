@@ -41,8 +41,9 @@ export default function AdminLogin() {
     setError("");
     setSubmitting(true);
     try {
-      await login(email, password);
-      navigate(location.state?.from || "/admin", { replace: true });
+      const loggedIn = await login(email, password);
+      const destination = loggedIn.role === "staff" ? "/staff" : location.state?.from || "/admin";
+      navigate(destination, { replace: true });
     } catch (err) {
       setError(err.message || "Unable to sign in. Please check your credentials.");
     } finally {

@@ -46,6 +46,15 @@ export async function requireAuth(req, res, next) {
   }
 }
 
+export function requireRole(...allowedRoles) {
+  return (req, res, next) => {
+    if (!req.admin || !allowedRoles.includes(req.admin.role)) {
+      return res.status(403).json({ message: "Access denied." });
+    }
+    next();
+  };
+}
+
 export function publicAdmin(admin) {
   return {
     id: admin._id,

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { api, downloadPdf } from "../../lib/api.js";
 import { useToast } from "../../components/Toast.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 import ProfileDetails from "../../components/ProfileDetails.jsx";
 import {
   Button,
@@ -39,6 +40,7 @@ export default function SubmissionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { push } = useToast();
+  const { admin } = useAuth();
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -172,9 +174,11 @@ export default function SubmissionDetail() {
           <Button variant="outline" icon={FileDown} loading={pdfLoading} onClick={handlePdf}>
             Download PDF
           </Button>
-          <Button variant="danger-ghost" icon={Trash2} onClick={() => setConfirmDelete(true)}>
-            Delete
-          </Button>
+          {admin?.role === "admin" && (
+            <Button variant="danger-ghost" icon={Trash2} onClick={() => setConfirmDelete(true)}>
+              Delete
+            </Button>
+          )}
         </div>
         {assistance.length ? (
           <div className="record-needs">

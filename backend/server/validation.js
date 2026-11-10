@@ -248,6 +248,16 @@ export const submissionSchema = z.object({
   website: z.string().trim().max(200).optional().default(""),
 });
 
+export const registerSchema = z.object({
+  name: z.string().trim().min(2, "Full name is required").max(200),
+  email: z.string().trim().email("Enter a valid email address").max(200).toLowerCase(),
+  password: z.string().min(8, "Password must be at least 8 characters").max(200),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match.",
+  path: ["confirmPassword"],
+});
+
 export const staffUpdateSchema = z.object({
   status: z.enum(["new", "in_review", "referred", "completed"]).optional(),
   staff: z

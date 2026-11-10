@@ -15,16 +15,22 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { initials } from "../../lib/helpers.js";
 import { BrandMark } from "../../components/ui.jsx";
 
-const NAV = [
+const ADMIN_NAV = [
   { to: "/admin", label: "Overview", icon: LayoutDashboard, end: true },
   { to: "/admin/submissions", label: "Responses", icon: FileSpreadsheet },
   { to: "/admin/settings", label: "Settings", icon: Settings },
+];
+
+const STAFF_NAV = [
+  { to: "/staff/submissions", label: "My Responses", icon: FileSpreadsheet, end: true },
 ];
 
 const TITLES = {
   "/admin": "Overview",
   "/admin/submissions": "Profiling responses",
   "/admin/settings": "Settings",
+  "/staff": "My profiling responses",
+  "/staff/submissions": "My profiling responses",
 };
 
 export default function AdminLayout() {
@@ -39,8 +45,10 @@ export default function AdminLayout() {
 
   const handleLogout = () => {
     logout();
-    navigate("/admin/login", { replace: true });
+    navigate(admin.role === "staff" ? "/auth/register" : "/admin/login", { replace: true });
   };
+
+  const navItems = admin?.role === "staff" ? STAFF_NAV : ADMIN_NAV;
 
   const pageTitle = location.pathname.startsWith("/admin/submissions/")
     ? "Response details"
@@ -68,7 +76,7 @@ export default function AdminLayout() {
 
         <nav className="admin-nav" aria-label="Admin navigation">
           <span className="admin-nav-label">Menu</span>
-          {NAV.map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             return (
               <NavLink

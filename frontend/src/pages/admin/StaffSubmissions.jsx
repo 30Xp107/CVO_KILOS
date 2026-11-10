@@ -257,7 +257,7 @@ export default function StaffSubmissions() {
                 </thead>
                 <tbody>
                   {items.map((item) => (
-                    <tr key={item._id} onClick={() => navigate(`/admin/submissions/${item._id}`)}>
+                    <tr key={item._id} onClick={() => navigate(`/submissions/${item._id}`)}>
                       <td>
                         <div className="table-person">
                           <span className="table-avatar">
@@ -302,7 +302,7 @@ export default function StaffSubmissions() {
                       <td className="align-right">
                         <div className="table-actions">
                           <Link
-                            to={`/admin/submissions/${item._id}`}
+                            to={`/submissions/${item._id}`}
                             className="icon-btn"
                             aria-label="View response"
                             title="View response"
@@ -321,7 +321,7 @@ export default function StaffSubmissions() {
                             {pdfId === item._id ? <Spinner size={16} /> : <FileDown size={17} />}
                           </button>
                           <Link
-                            to={`/admin/submissions/${item._id}`}
+                            to={`/submissions/${item._id}`}
                             className="icon-btn subtle"
                             aria-label="Open details"
                             onClick={(event) => event.stopPropagation()}
@@ -365,7 +365,7 @@ export default function StaffSubmissions() {
                     </div>
                   </div>
                   <footer>
-                    <Link to={`/admin/submissions/${item._id}`} className="btn btn-outline btn-sm">
+                    <Link to={`/submissions/${item._id}`} className="btn btn-outline btn-sm">
                       <Eye size={15} /> View
                     </Link>
                     <Button

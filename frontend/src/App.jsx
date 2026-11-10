@@ -11,6 +11,7 @@ import Dashboard from "./pages/admin/Dashboard.jsx";
 import Submissions from "./pages/admin/Submissions.jsx";
 import SubmissionDetail from "./pages/admin/SubmissionDetail.jsx";
 import Settings from "./pages/admin/Settings.jsx";
+import StaffManagement from "./pages/admin/StaffManagement.jsx";
 import StaffSubmissions from "./pages/admin/StaffSubmissions.jsx";
 import { Link } from "react-router-dom";
 
@@ -22,7 +23,11 @@ function ScrollToTop() {
   return null;
 }
 
-function ProtectedRoute({ children }) {
+/* -------------------------------------------------------------------------- */
+/* Role-based route guards                                                    */
+/* -------------------------------------------------------------------------- */
+
+function AuthRoute({ children }) {
   const { admin, loading } = useAuth();
   const location = useLocation();
 
@@ -42,6 +47,67 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
+function AdminOnlyRoute({ children }) {
+  const { admin, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="login-loading">
+        <Spinner size={28} />
+        <span>Checking your session…</span>
+      </div>
+    );
+  }
+
+  if (!admin || admin.role !== "admin") {
+    return <Navigate to="/admin/login" replace state={{ from: location.pathname }} />;
+  }
+
+  return children;
+}
+
+function StaffOnlyRoute({ children }) {
+  const { admin, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="login-loading">
+        <Spinner size={28} />
+        <span>Checking your session…</span>
+      </div>
+    );
+  }
+
+  if (!admin || admin.role !== "staff") {
+    return <Navigate to="/admin/login" replace state={{ from: location.pathname }} />;
+  }
+
+  return children;
+}
+
+function GuestRoute({ children }) {
+  const { admin, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="login-loading">
+        <Spinner size={28} />
+        <span>Checking your session…</span>
+      </div>
+    );
+  }
+
+  if (admin) {
+    const destination = admin.role === "staff" ? "/staff" : "/admin";
+    return <Navigate to={destination} replace />;
+  }
+
+  return children;
+}
+
 function NotFound() {
   return (
     <div className="not-found">
@@ -49,11 +115,8 @@ function NotFound() {
       <h1>Page not found</h1>
       <p>The page you are looking for does not exist or has been moved.</p>
       <div className="not-found-actions">
-        <Link to="/" className="btn btn-primary">
-          Go to profiling form
-        </Link>
-        <Link to="/admin" className="btn btn-outline">
-          Admin dashboard
+        <Link to="/admin/login" className="btn btn-primary">
+          Sign in
         </Link>
       </div>
     </div>
@@ -67,33 +130,58 @@ export default function App() {
         <BrowserRouter>
           <ScrollToTop />
           <Routes>
-            <Route path="/" element={<FormPage />} />
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/auth/register" element={<StaffRegister />} />
+            {/* Public profiling form - requires any authenticated user */}
+            <Route
+              path="/"
+              element={
+                <AuthRoute>
+                  <FormPage />
+                </AuthRoute>
+              }
+            />
+
+            {/* Guest-only: login and registration */}
+            <Route path="/admin/login" element={<GuestRoute><AdminLogin /></GuestRoute>} />
+            <Route path="/auth/register" element={<GuestRoute><StaffRegister /></GuestRoute>} />
+
+            {/* Admin-only routes */}
             <Route
               path="/admin"
               element={
-                <ProtectedRoute>
+                <AdminOnlyRoute>
                   <AdminLayout />
-                </ProtectedRoute>
+                </AdminOnlyRoute>
               }
             >
               <Route index element={<Dashboard />} />
               <Route path="submissions" element={<Submissions />} />
-              <Route path="submissions/:id" element={<SubmissionDetail />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="staff" element={<StaffManagement />} />
             </Route>
+
+            {/* Submission detail - accessible by both admin and staff (backend enforces ownership) */}
+            <Route
+              path="/submissions/:id"
+              element={
+                <AuthRoute>
+                  <SubmissionDetail />
+                </AuthRoute>
+              }
+            />
+
+            {/* Staff-only routes */}
             <Route
               path="/staff"
               element={
-                <ProtectedRoute>
+                <StaffOnlyRoute>
                   <AdminLayout />
-                </ProtectedRoute>
+                </StaffOnlyRoute>
               }
             >
               <Route index element={<StaffSubmissions />} />
               <Route path="submissions" element={<StaffSubmissions />} />
             </Route>
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

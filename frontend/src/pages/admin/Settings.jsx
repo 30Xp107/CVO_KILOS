@@ -93,13 +93,13 @@ export default function Settings() {
           <SectionCard
             icon={UserRound}
             eyebrow="Profile"
-            title="Administrator account"
-            description="This account has access to all beneficiary profiling records."
+            title="Account"
+            description={admin?.role === "admin" ? "This account has access to all beneficiary profiling records." : "This account manages the beneficiary profiles assigned to you."}
           >
             <div className="account-card">
               <span className="record-avatar">{initials(admin?.name || admin?.email)}</span>
               <div>
-                <strong>{admin?.name || "Administrator"}</strong>
+                <strong>{admin?.name || "User"}</strong>
                 <span>{admin?.email}</span>
                 <span className="role-pill">{admin?.role === "admin" ? "Administrator" : "Staff"}</span>
               </div>

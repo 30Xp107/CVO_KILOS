@@ -105,9 +105,6 @@ export default function StaffRegister() {
 
       <main className="login-main">
         <div className="login-card">
-          <Link to="/" className="login-back">
-            <ArrowLeft size={15} /> Back to public form
-          </Link>
           <span className="login-icon">
             <UserPlus size={23} />
           </span>

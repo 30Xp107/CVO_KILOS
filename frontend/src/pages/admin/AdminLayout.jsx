@@ -9,6 +9,7 @@ import {
   Menu,
   Settings,
   ShieldCheck,
+  Users,
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -18,6 +19,7 @@ import { BrandMark } from "../../components/ui.jsx";
 const ADMIN_NAV = [
   { to: "/admin", label: "Overview", icon: LayoutDashboard, end: true },
   { to: "/admin/submissions", label: "Responses", icon: FileSpreadsheet },
+  { to: "/admin/staff", label: "Staff", icon: Users },
   { to: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
@@ -28,6 +30,7 @@ const STAFF_NAV = [
 const TITLES = {
   "/admin": "Overview",
   "/admin/submissions": "Profiling responses",
+  "/admin/staff": "Staff management",
   "/admin/settings": "Settings",
   "/staff": "My profiling responses",
   "/staff/submissions": "My profiling responses",
@@ -45,14 +48,16 @@ export default function AdminLayout() {
 
   const handleLogout = () => {
     logout();
-    navigate(admin.role === "staff" ? "/auth/register" : "/admin/login", { replace: true });
+    navigate("/admin/login", { replace: true });
   };
 
   const navItems = admin?.role === "staff" ? STAFF_NAV : ADMIN_NAV;
 
-  const pageTitle = location.pathname.startsWith("/admin/submissions/")
+  const pageTitle = location.pathname.startsWith("/submissions/")
     ? "Response details"
-    : TITLES[location.pathname] || "Admin";
+    : location.pathname.startsWith("/admin/submissions/")
+      ? "Response details"
+      : TITLES[location.pathname] || "Admin";
 
   return (
     <div className="admin-shell">
@@ -137,8 +142,9 @@ export default function AdminLayout() {
           <div className="admin-user">
             <span className="avatar">{initials(admin?.name || admin?.email || "A")}</span>
             <div className="admin-user-copy">
-              <strong>{admin?.name || "Administrator"}</strong>
+              <strong>{admin?.name || "User"}</strong>
               <span>{admin?.email}</span>
+              <span className="role-pill">{admin?.role === "admin" ? "Administrator" : "Staff"}</span>
             </div>
             <button type="button" className="icon-btn" onClick={handleLogout} aria-label="Sign out" title="Sign out">
               <LogOut size={18} />

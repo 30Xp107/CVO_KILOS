@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft,
   ArrowRight,
   Eye,
   EyeOff,
@@ -33,7 +32,7 @@ export default function AdminLogin() {
   }
 
   if (admin) {
-    return <Navigate to={location.state?.from || "/admin"} replace />;
+    return <Navigate to={admin.role === "staff" ? "/staff" : "/admin"} replace />;
   }
 
   const handleSubmit = async (event) => {
@@ -42,7 +41,13 @@ export default function AdminLogin() {
     setSubmitting(true);
     try {
       const loggedIn = await login(email, password);
-      const destination = loggedIn.role === "staff" ? "/staff" : location.state?.from || "/admin";
+      const from = location.state?.from;
+      const isAuthPage = from === "/admin/login" || from === "/auth/register";
+      const destination = !from || isAuthPage
+        ? loggedIn.role === "staff"
+          ? "/staff"
+          : "/admin"
+        : from;
       navigate(destination, { replace: true });
     } catch (err) {
       setError(err.message || "Unable to sign in. Please check your credentials.");
@@ -56,15 +61,16 @@ export default function AdminLogin() {
       <aside className="login-aside">
         <BrandMark light />
         <div className="login-aside-copy">
-          <p className="eyebrow">Administrator portal</p>
-          <h1>KILOS Profiling dashboard</h1>
+          <p className="eyebrow">KILOS Profiling portal</p>
+          <h1>Sign in to your account</h1>
           <p>
-            Review beneficiary profiles, update referral status, and export records for reporting.
+            Review beneficiary profiles, update referral status, and manage your profiling
+            assignments.
           </p>
           <ul>
             <li>
               <FileSpreadsheet size={18} />
-              <span>Export complete response data to Excel</span>
+              <span>View and manage profiling responses</span>
             </li>
             <li>
               <FileText size={18} />
@@ -83,15 +89,12 @@ export default function AdminLogin() {
 
       <main className="login-main">
         <div className="login-card">
-          <Link to="/" className="login-back">
-            <ArrowLeft size={15} /> Back to public form
-          </Link>
           <span className="login-icon">
             <LockKeyhole size={23} />
           </span>
           <h2>Sign in to your account</h2>
           <p className="login-subtitle">
-            Use the administrator credentials configured for this deployment.
+            Use your DSWD email and password to sign in.
           </p>
 
           {error ? <div className="form-alert">{error}</div> : null}

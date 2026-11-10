@@ -352,6 +352,35 @@ router.get(
   })
 );
 
+/* -------------------------------------------------------------------------- */
+/* Staff management                                                           */
+/* -------------------------------------------------------------------------- */
+
+router.get(
+  "/admin/staff",
+  requireRole("admin"),
+  asyncHandler(async (req, res) => {
+    const staff = await Admin.find({ role: "staff" })
+      .select("name email position idNumber lastLoginAt createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const staffWithCounts = await Promise.all(
+      staff.map(async (member) => {
+        const submissionCount = await Submission.countDocuments({
+          "staff.interviewedBy": member.name,
+        });
+        return {
+          ...member,
+          submissionCount,
+        };
+      })
+    );
+
+    res.json({ staff: staffWithCounts });
+  })
+);
+
 router.get(
   "/admin/submissions",
   requireRole("admin"),

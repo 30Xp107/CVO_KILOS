@@ -153,9 +153,12 @@ export default function Dashboard() {
       <section className="dashboard-hero">
         <div>
           <p className="eyebrow">Welcome back</p>
-          <h2>{admin?.name || "Administrator"}</h2>
+          <h2>{admin?.name || "User"}</h2>
           <p>
-            Here is what is happening with KILOS profiling submissions. {today}.
+            {admin?.role === "staff"
+              ? "Here are the profiling responses you have handled."
+              : "Here is what is happening with KILOS profiling submissions."}
+            {today}.
           </p>
         </div>
         <div className="dashboard-hero-actions">
